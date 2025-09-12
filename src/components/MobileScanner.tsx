@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { Capacitor } from '@capacitor/core';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -133,43 +134,147 @@ export const MobileScanner = ({ onItemScanned, onBatchComplete }: MobileScannerP
     }
   };
 
+  // Web fallback camera function
+  const handleWebCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } 
+      });
+      
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+      
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context?.drawImage(video, 0, 0);
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        stream.getTracks().forEach(track => track.stop());
+        
+        return dataUrl;
+      };
+      
+      return new Promise<string>((resolve) => {
+        video.onloadedmetadata = () => {
+          setTimeout(() => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context?.drawImage(video, 0, 0);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            stream.getTracks().forEach(track => track.stop());
+            resolve(dataUrl);
+          }, 1000);
+        };
+      });
+    } catch (error) {
+      console.error('Web camera error:', error);
+      throw error;
+    }
+  };
+
   const handleScan = async () => {
     try {
       setIsScanning(true);
-      await Haptics.impact({ style: ImpactStyle.Light });
+      
+      // Try haptics on native platforms
+      if (Capacitor.isNativePlatform()) {
+        await Haptics.impact({ style: ImpactStyle.Light });
+      }
 
-      const image = await Camera.getPhoto({
-        quality: 90,
-        allowEditing: false,
-        resultType: CameraResultType.DataUrl,
-        source: CameraSource.Camera,
-      });
+      let imageDataUrl: string | undefined;
 
-      if (image.dataUrl) {
-        setPreviewImage(image.dataUrl);
+      if (Capacitor.isNativePlatform()) {
+        // Use Capacitor Camera on native platforms
+        console.log('Using native Capacitor Camera');
+        const image = await Camera.getPhoto({
+          quality: 90,
+          allowEditing: false,
+          resultType: CameraResultType.DataUrl,
+          source: CameraSource.Camera,
+        });
+        imageDataUrl = image.dataUrl;
+      } else {
+        // Use web fallback in browser
+        console.log('Using web camera fallback');
+        try {
+          imageDataUrl = await handleWebCamera();
+        } catch (webError) {
+          console.error('Web camera failed, using file input fallback:', webError);
+          
+          // Create a file input as final fallback
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.capture = 'environment';
+          
+          imageDataUrl = await new Promise<string>((resolve, reject) => {
+            input.onchange = (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+              } else {
+                reject(new Error('No file selected'));
+              }
+            };
+            input.click();
+          });
+        }
+      }
+
+      if (imageDataUrl) {
+        setPreviewImage(imageDataUrl);
         
         // Perform quick on-device analysis
-        const scannedItem = await performOnDeviceAnalysis(image.dataUrl);
+        const scannedItem = await performOnDeviceAnalysis(imageDataUrl);
         
         if (batchMode) {
           setBatchItems(prev => [...prev, scannedItem]);
           scanCountRef.current += 1;
           
-          await Haptics.impact({ style: ImpactStyle.Medium });
+          if (Capacitor.isNativePlatform()) {
+            await Haptics.impact({ style: ImpactStyle.Medium });
+          }
           toast({
             title: `Objekt ${scanCountRef.current} skannat`,
             description: `${scannedItem.title} - ${Math.round(scannedItem.confidence * 100)}% säker`,
           });
         } else {
           onItemScanned(scannedItem);
-          await Haptics.impact({ style: ImpactStyle.Heavy });
+          if (Capacitor.isNativePlatform()) {
+            await Haptics.impact({ style: ImpactStyle.Heavy });
+          }
         }
       }
     } catch (error) {
       console.error('Camera error:', error);
+      
+      let errorMessage = "Kunde inte öppna kameran.";
+      if (error instanceof Error) {
+        if (error.message.includes('Permission')) {
+          errorMessage = "Kamerabehörighet nekad. Aktivera kamera i webbläsarinställningar.";
+        } else if (error.message.includes('NotFound')) {
+          errorMessage = "Ingen kamera hittades på enheten.";
+        } else if (error.message.includes('NotSupported')) {
+          errorMessage = "Kamera stöds inte i denna webbläsare.";
+        }
+      }
+      
       toast({
         title: "Kamerafel",
-        description: "Kunde inte öppna kameran. Kontrollera behörigheter.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
