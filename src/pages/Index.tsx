@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useItems } from '@/hooks/useItems';
 import { Item, AnalysisData } from '@/types/database';
 import { toast } from '@/hooks/use-toast';
+import { exportService } from '@/lib/exportService';
 import { Folder, Home, LogOut, User } from 'lucide-react';
 
 interface CollectionItem {
@@ -198,11 +199,36 @@ const Index = () => {
     await deleteItem(id);
   };
 
-  const handleExport = () => {
-    toast({
-      title: 'Export startar',
-      description: 'Din samling exporteras till CSV/Excel...',
-    });
+  const handleExport = async () => {
+    if (!user) return;
+    
+    try {
+      const blob = await exportService.exportCollection(
+        items, 
+        user.email || 'user@example.com',
+        {
+          format: 'pdf',
+          includeImages: false,
+          includeValuation: true,
+          template: 'standard'
+        }
+      );
+      
+      const filename = exportService.generateFilename('pdf', user.email || 'user');
+      exportService.downloadFile(blob, filename);
+      
+      toast({
+        title: 'Export klar!',
+        description: `Din samling har exporterats som ${filename}`,
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: 'Export misslyckades',
+        description: 'Ett fel uppstod vid export av samlingen.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleShare = () => {

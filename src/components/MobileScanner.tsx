@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Camera as CameraIcon, Zap, Plus, Layers } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { onDeviceClassifier } from '@/lib/onDeviceML';
+import { ocrService } from '@/lib/ocrService';
+import { conditionGradingService } from '@/lib/conditionGrading';
 
 interface ScannedItem {
   id: string;
@@ -19,6 +21,10 @@ interface ScannedItem {
     mid: number;
     high: number;
   };
+  detectedText?: string[];
+  hasText?: boolean;
+  conditionGrade?: string;
+  conditionScore?: number;
 }
 
 interface MobileScannerProps {
@@ -35,25 +41,71 @@ export const MobileScanner = ({ onItemScanned, onBatchComplete }: MobileScannerP
 
   const performOnDeviceAnalysis = async (imageData: string): Promise<ScannedItem> => {
     try {
-      // Use actual on-device ML for quick classification
-      const classification = await onDeviceClassifier.classifyImage(imageData);
+      // Start all analysis in parallel for maximum speed
+      const [classification, ocrData, conditionAnalysis] = await Promise.all([
+        onDeviceClassifier.classifyImage(imageData),
+        ocrService.extractCollectibleText(imageData, 'unknown').catch(err => {
+          console.warn('OCR failed, continuing without text:', err);
+          return {
+            identifiers: [],
+            dates: [],
+            signatures: [],
+            numbers: [],
+            brands: []
+          };
+        }),
+        conditionGradingService.analyzeCondition(imageData, 'unknown').catch(err => {
+          console.warn('Condition analysis failed:', err);
+          return {
+            grade: 'Unknown',
+            score: 70,
+            factors: { corners: 70, edges: 70, surface: 70, centering: 70 },
+            defects: [],
+            recommendations: []
+          };
+        })
+      ]);
       
+      // Combine OCR results for richer identification
+      const allIdentifiers = [
+        ...ocrData.identifiers,
+        ...ocrData.numbers,
+        ...ocrData.dates,
+        ...ocrData.brands
+      ].filter(Boolean).slice(0, 10); // Limit to top 10 most relevant
+
+      // Enhanced title with more context
+      let enhancedTitle = `${classification.category === 'cards' ? 'Identifierat kort' : 
+              classification.category === 'porcelain' ? 'Porslinsobjekt' :
+              classification.category === 'coin' ? 'Mynt/medalj' :
+              classification.category === 'stamp' ? 'Frimärke' :
+              classification.category === 'toy' ? 'Leksak/figur' :
+              'Samlarobjekt'}`;
+      
+      if (ocrData.brands.length > 0) {
+        enhancedTitle += ` - ${ocrData.brands[0]}`;
+      }
+      
+      if (ocrData.dates.length > 0) {
+        enhancedTitle += ` (${ocrData.dates[0]})`;
+      }
+
       const mockItem: ScannedItem = {
         id: `scan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         image: imageData,
         category: classification.category,
-        title: `${classification.category === 'cards' ? 'Identifierat kort' : 
-                classification.category === 'porcelain' ? 'Porslinsobjekt' :
-                classification.category === 'coin' ? 'Mynt/medalj' :
-                classification.category === 'stamp' ? 'Frimärke' :
-                classification.category === 'toy' ? 'Leksak/figur' :
-                'Samlarobjekt'}`,
-        confidence: classification.confidence,
+        title: enhancedTitle,
+        confidence: Math.min(classification.confidence * 0.9, 0.9), // Slightly lower for quick scan
         price_estimate: {
-          low: Math.floor(Math.random() * 1000) + 100,
-          mid: Math.floor(Math.random() * 2000) + 500,
-          high: Math.floor(Math.random() * 5000) + 1000,
-        }
+          // Price influenced by condition
+          low: Math.floor((Math.random() * 1000 + 100) * (conditionAnalysis.score / 100)),
+          mid: Math.floor((Math.random() * 2000 + 500) * (conditionAnalysis.score / 100)),
+          high: Math.floor((Math.random() * 5000 + 1000) * (conditionAnalysis.score / 100)),
+        },
+        detectedText: allIdentifiers,
+        hasText: ocrData.identifiers.length > 0 || ocrData.numbers.length > 0,
+        conditionGrade: conditionAnalysis.grade,
+        conditionScore: conditionAnalysis.score
       };
 
       return mockItem;
@@ -74,7 +126,9 @@ export const MobileScanner = ({ onItemScanned, onBatchComplete }: MobileScannerP
           low: Math.floor(Math.random() * 1000) + 100,
           mid: Math.floor(Math.random() * 2000) + 500,
           high: Math.floor(Math.random() * 5000) + 1000,
-        }
+        },
+        detectedText: [],
+        hasText: false
       };
     }
   };
