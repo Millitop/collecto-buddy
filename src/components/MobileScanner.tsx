@@ -134,52 +134,28 @@ export const MobileScanner = ({ onItemScanned, onBatchComplete }: MobileScannerP
     }
   };
 
-  // Web fallback camera function
-  const handleWebCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        } 
-      });
+  // Simple file input fallback
+  const handleFileInput = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.capture = 'environment';
       
-      const video = document.createElement('video');
-      video.srcObject = stream;
-      video.play();
-      
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      
-      video.onloadedmetadata = () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context?.drawImage(video, 0, 0);
-        
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-        stream.getTracks().forEach(track => track.stop());
-        
-        return dataUrl;
+      input.onchange = (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Kunde inte läsa filen'));
+          reader.readAsDataURL(file);
+        } else {
+          reject(new Error('Ingen fil vald'));
+        }
       };
       
-      return new Promise<string>((resolve) => {
-        video.onloadedmetadata = () => {
-          setTimeout(() => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context?.drawImage(video, 0, 0);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-            stream.getTracks().forEach(track => track.stop());
-            resolve(dataUrl);
-          }, 1000);
-        };
-      });
-    } catch (error) {
-      console.error('Web camera error:', error);
-      throw error;
-    }
+      input.click();
+    });
   };
 
   const handleScan = async () => {
@@ -204,34 +180,9 @@ export const MobileScanner = ({ onItemScanned, onBatchComplete }: MobileScannerP
         });
         imageDataUrl = image.dataUrl;
       } else {
-        // Use web fallback in browser
-        console.log('Using web camera fallback');
-        try {
-          imageDataUrl = await handleWebCamera();
-        } catch (webError) {
-          console.error('Web camera failed, using file input fallback:', webError);
-          
-          // Create a file input as final fallback
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = 'image/*';
-          input.capture = 'environment';
-          
-          imageDataUrl = await new Promise<string>((resolve, reject) => {
-            input.onchange = (e) => {
-              const file = (e.target as HTMLInputElement).files?.[0];
-              if (file) {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-              } else {
-                reject(new Error('No file selected'));
-              }
-            };
-            input.click();
-          });
-        }
+        // Use file input for web browsers  
+        console.log('Using file input for web');
+        imageDataUrl = await handleFileInput();
       }
 
       if (imageDataUrl) {
