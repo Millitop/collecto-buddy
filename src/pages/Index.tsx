@@ -244,41 +244,44 @@ const Index = () => {
 
   if (view === 'scanner') {
     return (
-      <div className="relative">
+      <div className="relative h-screen overflow-hidden">
         <MobileScanner 
           onItemScanned={handleItemScanned}
           onBatchComplete={handleBatchComplete}
         />
         
-        {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4">
-          <div className="flex justify-center gap-6">
+        {/* Mobile Bottom Navigation with Safe Area */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t safe-area-bottom">
+          <div className="flex justify-around px-4 py-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setView('scanner')}
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 min-h-[60px] flex-1 text-primary touch-manipulation"
             >
-              <Home className="w-5 h-5" />
-              <span className="text-xs">Skanna</span>
+              <Home className="w-6 h-6" />
+              <span className="text-xs font-medium">Skanna</span>
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setView('collection')}
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 min-h-[60px] flex-1 touch-manipulation"
             >
-              <Folder className="w-5 h-5" />
-              <span className="text-xs">Samling ({items.length})</span>
+              <Folder className="w-6 h-6" />
+              <span className="text-xs">Samling</span>
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-primary text-primary-foreground">
+                {items.length}
+              </Badge>
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleSignOut}
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 min-h-[60px] flex-1 touch-manipulation"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="text-xs">Logga ut</span>
+              <LogOut className="w-6 h-6" />
+              <span className="text-xs">Avsluta</span>
             </Button>
           </div>
         </div>
@@ -288,7 +291,7 @@ const Index = () => {
 
   if (view === 'collection') {
     return (
-      <div className="relative">
+      <div className="relative h-screen overflow-hidden">
         <CollectionView
           items={items.map(convertToCollectionItem)}
           onItemSelect={handleItemSelect}
@@ -297,35 +300,38 @@ const Index = () => {
           onShare={handleShare}
         />
         
-        {/* Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4">
-          <div className="flex justify-center gap-6">
+        {/* Mobile Bottom Navigation with Safe Area */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t safe-area-bottom">
+          <div className="flex justify-around px-4 py-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setView('scanner')}
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 min-h-[60px] flex-1 touch-manipulation"
             >
-              <Home className="w-5 h-5" />
+              <Home className="w-6 h-6" />
               <span className="text-xs">Skanna</span>
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setView('collection')}
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 min-h-[60px] flex-1 text-primary touch-manipulation"
             >
-              <Folder className="w-5 h-5" />
-              <span className="text-xs">Samling ({items.length})</span>
+              <Folder className="w-6 h-6" />
+              <span className="text-xs font-medium">Samling</span>
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs bg-primary text-primary-foreground">
+                {items.length}
+              </Badge>
             </Button>
             <Button
               variant="ghost"
               size="sm"
               onClick={handleSignOut}
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1 min-h-[60px] flex-1 touch-manipulation"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="text-xs">Logga ut</span>
+              <LogOut className="w-6 h-6" />
+              <span className="text-xs">Avsluta</span>
             </Button>
           </div>
         </div>
