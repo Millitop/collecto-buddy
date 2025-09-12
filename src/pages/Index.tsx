@@ -1,37 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MobileScanner } from '@/components/MobileScanner';
 import { CollectionView } from '@/components/CollectionView';
 import { SwipeableResult } from '@/components/SwipeableResult';
-import { AnalysisResult } from '@/components/AnalysisResult';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
+import { useItems } from '@/hooks/useItems';
+import { Item, AnalysisData } from '@/types/database';
 import { toast } from '@/hooks/use-toast';
-import { Folder, Archive, Home } from 'lucide-react';
-
-interface ScannedItem {
-  id: string;
-  image: string;
-  category: string;
-  title: string;
-  subcategory: string;
-  maker_brand: string;
-  year_or_period: string;
-  set_or_model: string;
-  identifiers: string[];
-  condition: {
-    grade: string;
-    notes: string;
-  };
-  authenticity_flags: string[];
-  price_estimate_SEK: {
-    low: number;
-    mid: number;
-    high: number;
-    sources: string[];
-  };
-  next_shots: string[];
-  confidence: number;
-  added_date: string;
-}
+import { Folder, Home, LogOut, User } from 'lucide-react';
 
 interface CollectionItem {
   id: string;
@@ -50,15 +28,37 @@ interface CollectionItem {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { items, addItem, deleteItem, loading: itemsLoading } = useItems(user?.id);
   const [view, setView] = useState<'scanner' | 'result' | 'collection'>('scanner');
-  const [currentScanResult, setCurrentScanResult] = useState<ScannedItem | null>(null);
-  const [collection, setCollection] = useState<ScannedItem[]>([]);
+  const [currentScanResult, setCurrentScanResult] = useState<AnalysisData & { images: string[] } | null>(null);
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin w-8 h-8 border-3 border-white border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p>Laddar...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect via useEffect
+  }
 
   const handleItemScanned = (item: any) => {
-    // Convert scanned item to full analysis data
-    const fullAnalysisData: ScannedItem = {
-      id: item.id,
-      image: item.image,
+    // Convert scanned item to analysis data format
+    const analysisData: AnalysisData & { images: string[] } = {
       category: item.category,
       subcategory: `${item.category}/Subkategori`,
       title: `${item.category === 'cards' ? 'Charizard 1st Edition' : 'Identifierat objekt'}`,
@@ -86,10 +86,10 @@ const Index = () => {
         'Närbild på identifierande märken'
       ],
       confidence: item.confidence,
-      added_date: new Date().toISOString()
+      images: [item.image]
     };
 
-    setCurrentScanResult(fullAnalysisData);
+    setCurrentScanResult(analysisData);
     setView('result');
   };
 
@@ -105,13 +105,29 @@ const Index = () => {
     }
   };
 
-  const handleAddToCollection = () => {
-    if (currentScanResult) {
-      setCollection(prev => [...prev, currentScanResult]);
-      toast({
-        title: 'Tillagt i samling!',
-        description: `${currentScanResult.title} har lagts till i din samling.`,
-      });
+  const handleAddToCollection = async () => {
+    if (!currentScanResult) return;
+
+    const itemData = {
+      category: currentScanResult.category,
+      subcategory: currentScanResult.subcategory,
+      title: currentScanResult.title,
+      maker_brand: currentScanResult.maker_brand,
+      year_or_period: currentScanResult.year_or_period,
+      set_or_model: currentScanResult.set_or_model,
+      identifiers: currentScanResult.identifiers,
+      condition_grade: currentScanResult.condition.grade,
+      condition_notes: currentScanResult.condition.notes,
+      authenticity_flags: currentScanResult.authenticity_flags,
+      price_low: currentScanResult.price_estimate_SEK.low,
+      price_mid: currentScanResult.price_estimate_SEK.mid,
+      price_high: currentScanResult.price_estimate_SEK.high,
+      images: currentScanResult.images,
+      confidence: currentScanResult.confidence,
+    };
+
+    const result = await addItem(itemData);
+    if (!result.error) {
       setCurrentScanResult(null);
       setView('scanner');
     }
@@ -130,37 +146,56 @@ const Index = () => {
     setView('scanner');
   };
 
-  const convertToCollectionItem = (scannedItem: ScannedItem): CollectionItem => ({
-    id: scannedItem.id,
-    image: scannedItem.image,
-    title: scannedItem.title,
-    category: scannedItem.category,
-    subcategory: scannedItem.subcategory,
-    condition: scannedItem.condition.grade,
+  const convertToCollectionItem = (item: Item): CollectionItem => ({
+    id: item.id,
+    image: item.images[0] || '',
+    title: item.title,
+    category: item.category,
+    subcategory: item.subcategory || '',
+    condition: item.condition_grade,
     price_estimate: {
-      low: scannedItem.price_estimate_SEK.low,
-      mid: scannedItem.price_estimate_SEK.mid,
-      high: scannedItem.price_estimate_SEK.high,
+      low: item.price_low || 0,
+      mid: item.price_mid || 0,
+      high: item.price_high || 0,
     },
-    added_date: scannedItem.added_date,
-    confidence: scannedItem.confidence,
+    added_date: item.created_at,
+    confidence: item.confidence,
   });
 
   const handleItemSelect = (item: CollectionItem) => {
-    // Find the full scanned item from collection
-    const fullItem = collection.find(c => c.id === item.id);
+    // Find the full item from database
+    const fullItem = items.find(i => i.id === item.id);
     if (fullItem) {
-      setCurrentScanResult(fullItem);
+      const analysisData: AnalysisData & { images: string[] } = {
+        category: fullItem.category,
+        subcategory: fullItem.subcategory || '',
+        title: fullItem.title,
+        maker_brand: fullItem.maker_brand || '',
+        year_or_period: fullItem.year_or_period || '',
+        set_or_model: fullItem.set_or_model || '',
+        identifiers: fullItem.identifiers,
+        condition: {
+          grade: fullItem.condition_grade,
+          notes: fullItem.condition_notes || ''
+        },
+        authenticity_flags: fullItem.authenticity_flags,
+        price_estimate_SEK: {
+          low: fullItem.price_low || 0,
+          mid: fullItem.price_mid || 0,
+          high: fullItem.price_high || 0,
+          sources: ['database']
+        },
+        next_shots: [],
+        confidence: fullItem.confidence,
+        images: fullItem.images
+      };
+      setCurrentScanResult(analysisData);
       setView('result');
     }
   };
 
-  const handleItemDelete = (id: string) => {
-    setCollection(prev => prev.filter(item => item.id !== id));
-    toast({
-      title: 'Objekt borttaget',
-      description: 'Objektet har tagits bort från din samling.',
-    });
+  const handleItemDelete = async (id: string) => {
+    await deleteItem(id);
   };
 
   const handleExport = () => {
@@ -175,6 +210,10 @@ const Index = () => {
       title: 'Delningslänk skapad',
       description: 'Länk till din samling har kopierats.',
     });
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   if (view === 'scanner') {
@@ -204,7 +243,16 @@ const Index = () => {
               className="flex flex-col items-center gap-1"
             >
               <Folder className="w-5 h-5" />
-              <span className="text-xs">Samling ({collection.length})</span>
+              <span className="text-xs">Samling ({items.length})</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="flex flex-col items-center gap-1"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-xs">Logga ut</span>
             </Button>
           </div>
         </div>
@@ -216,7 +264,7 @@ const Index = () => {
     return (
       <div className="relative">
         <CollectionView
-          items={collection.map(convertToCollectionItem)}
+          items={items.map(convertToCollectionItem)}
           onItemSelect={handleItemSelect}
           onItemDelete={handleItemDelete}
           onExport={handleExport}
@@ -242,7 +290,16 @@ const Index = () => {
               className="flex flex-col items-center gap-1"
             >
               <Folder className="w-5 h-5" />
-              <span className="text-xs">Samling ({collection.length})</span>
+              <span className="text-xs">Samling ({items.length})</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="flex flex-col items-center gap-1"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-xs">Logga ut</span>
             </Button>
           </div>
         </div>
@@ -254,7 +311,7 @@ const Index = () => {
     return (
       <SwipeableResult
         data={currentScanResult}
-        image={currentScanResult.image}
+        image={currentScanResult.images[0] || ''}
         onSwipeUp={handleAddToCollection}
         onSwipeRight={handleViewDetails}
         onSwipeLeft={handleDismiss}

@@ -196,6 +196,80 @@ export type Database = {
         }
         Relationships: []
       }
+      items: {
+        Row: {
+          authenticity_flags: Json | null
+          category: string
+          condition_grade: string
+          condition_notes: string | null
+          confidence: number | null
+          created_at: string
+          id: string
+          identifiers: Json | null
+          images: Json | null
+          maker_brand: string | null
+          price_high: number | null
+          price_low: number | null
+          price_mid: number | null
+          set_or_model: string | null
+          subcategory: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          year_or_period: string | null
+        }
+        Insert: {
+          authenticity_flags?: Json | null
+          category: string
+          condition_grade: string
+          condition_notes?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          identifiers?: Json | null
+          images?: Json | null
+          maker_brand?: string | null
+          price_high?: number | null
+          price_low?: number | null
+          price_mid?: number | null
+          set_or_model?: string | null
+          subcategory?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          year_or_period?: string | null
+        }
+        Update: {
+          authenticity_flags?: Json | null
+          category?: string
+          condition_grade?: string
+          condition_notes?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          identifiers?: Json | null
+          images?: Json | null
+          maker_brand?: string | null
+          price_high?: number | null
+          price_low?: number | null
+          price_mid?: number | null
+          set_or_model?: string | null
+          subcategory?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          year_or_period?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "items_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_alerts: {
         Row: {
           created_at: string
@@ -236,6 +310,44 @@ export type Database = {
             columns: ["saved_product_id"]
             isOneToOne: false
             referencedRelation: "saved_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      price_history: {
+        Row: {
+          created_at: string
+          currency: string | null
+          id: string
+          item_id: string
+          price: number
+          sold_at: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          item_id: string
+          price: number
+          sold_at: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          id?: string
+          item_id?: string
+          price?: number
+          sold_at?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "items"
             referencedColumns: ["id"]
           },
         ]
@@ -488,6 +600,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      users: {
+        Row: {
+          country: string | null
+          created_at: string
+          email: string
+          id: string
+          plan: string | null
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          email: string
+          id: string
+          plan?: string | null
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          plan?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
