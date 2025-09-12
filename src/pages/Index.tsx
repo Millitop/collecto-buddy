@@ -20,37 +20,33 @@ const Index = () => {
     // Simulate API call with mock data
     setTimeout(() => {
       setAnalysisData({
-        category: {
-          domain: "Kortspel",
-          subdomain: "Pokémon",
-          specific_set: "Base Set 1st Edition"
-        },
-        variant: {
-          year: "1998",
-          set: "Base Set",
-          edition: "1st Edition", 
-          manufacturer: "Wizards of the Coast",
-          model_number: "4/102"
-        },
+        category: "cards",
+        subcategory: "Pokémon/Base Set",
+        title: "Charizard 1st Edition",
+        maker_brand: "Wizards of the Coast",
+        year_or_period: "1998",
+        set_or_model: "Base Set 4/102",
+        identifiers: ["4/102", "©1995, 96, 98 Nintendo", "1st Edition symbol"],
         condition: {
           grade: "NM",
-          explanation: "Mycket fint skick med minimal kantslitage. Inga större repor eller bucklor synliga."
+          notes: "Mycket fint skick med minimal kantslitage. Inga större repor eller bucklor synliga."
         },
-        market_value: {
-          range_sek: "15 000 - 25 000 SEK",
-          source_field: "Senaste auktioner eBay & PWCC"
-        },
-        next_steps: [
-          "Ta en närbild av alla fyra hörn",
-          "Fotografera baksidan i bättre ljus",
-          "Överväg professionell gradering (PSA/BGS)"
-        ],
-        risks_flags: [
+        authenticity_flags: [
           "Kontrollera äkthet - populärt kort för förfalskningar",
           "Shadowless-variant värd betydligt mer än unlimited"
         ],
-        detected_text: ["Charizard", "4/102", "©1995, 96, 98 Nintendo"],
-        confidence: 87
+        price_estimate_SEK: {
+          low: 15000,
+          mid: 20000,
+          high: 25000,
+          sources: ["auktion_historik", "ebay_pwcc"]
+        },
+        next_shots: [
+          "Ta en närbild av alla fyra hörn",
+          "Fotografera baksidan i bättre ljus", 
+          "Närbild på 1st Edition-symbolen"
+        ],
+        confidence: 0.87
       });
       setIsAnalyzing(false);
     }, 2000);
