@@ -4,9 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 export const useAuth = () => {
+  console.log('useAuth.ts: Hook initializing');
+  
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  console.log('useAuth.ts: State initialized, loading:', loading);
 
   useEffect(() => {
     // Set up auth state listener FIRST
