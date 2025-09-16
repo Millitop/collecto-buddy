@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           // Vendor chunks
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-button'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-slot'],
           'query-vendor': ['@tanstack/react-query'],
           
           // ML libraries - separate chunks for lazy loading
