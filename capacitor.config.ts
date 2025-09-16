@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.31b89bf6a75f4ae088a17bc5d26ffe27',
+  appId: 'com.collecto.buddy',
   appName: 'collecto-buddy',
   webDir: 'dist',
   server: {
