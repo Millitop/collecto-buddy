@@ -1,11 +1,11 @@
 // Lazy import for transformers library
-let transformers: any = null;
+let transformersModule: any = null;
 
 const loadTransformers = async () => {
-  if (!transformers) {
-    transformers = await import('@huggingface/transformers');
+  if (!transformersModule) {
+    transformersModule = await import('@huggingface/transformers');
   }
-  return transformers;
+  return transformersModule;
 };
 
 interface ClassificationResult {
@@ -24,7 +24,8 @@ class OnDeviceClassifier {
       console.log('Initializing on-device classifier...');
       
       // Lazy load transformers library
-      const { pipeline, env } = await loadTransformers();
+      const transformers = await loadTransformers();
+      const { pipeline, env } = transformers;
       
       // Configure environment to prefer WebGPU, fallback to CPU
       env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/';
