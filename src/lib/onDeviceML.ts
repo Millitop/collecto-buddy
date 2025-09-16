@@ -1,8 +1,12 @@
-import { pipeline, env } from '@huggingface/transformers';
+// Lazy import for transformers library
+let transformers: any = null;
 
-// Configure transformers.js for browser usage
-env.allowLocalModels = false;
-env.useBrowserCache = true;
+const loadTransformers = async () => {
+  if (!transformers) {
+    transformers = await import('@huggingface/transformers');
+  }
+  return transformers;
+};
 
 interface ClassificationResult {
   category: string;
@@ -12,42 +16,51 @@ interface ClassificationResult {
 
 class OnDeviceClassifier {
   private classifier: any = null;
-  private isInitialized = false;
 
   async initialize() {
-    if (this.isInitialized) return;
-    
+    if (this.classifier) return;
+
     try {
       console.log('Initializing on-device classifier...');
       
-      // Use a lightweight image classification model for quick pre-categorization
-      this.classifier = await pipeline(
-        'image-classification',
-        'onnx-community/mobilenetv4_conv_small.e2400_r224_in1k',
-        { device: 'webgpu' }
-      );
+      // Lazy load transformers library
+      const { pipeline, env } = await loadTransformers();
       
-      this.isInitialized = true;
-      console.log('On-device classifier initialized successfully');
-    } catch (error) {
-      console.warn('WebGPU not available, falling back to CPU:', error);
+      // Configure environment to prefer WebGPU, fallback to CPU
+      env.backends.onnx.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/';
+      
+      // Try WebGPU first, fallback to CPU
+      let device: 'webgpu' | 'cpu' = 'webgpu';
       
       try {
-        this.classifier = await pipeline(
-          'image-classification',
-          'onnx-community/mobilenetv4_conv_small.e2400_r224_in1k'
-        );
-        this.isInitialized = true;
-        console.log('On-device classifier initialized on CPU');
-      } catch (cpuError) {
-        console.error('Failed to initialize classifier:', cpuError);
-        throw cpuError;
+        // Test WebGPU availability
+        if (!(navigator as any).gpu) {
+          throw new Error('WebGPU not available');
+        }
+        const adapter = await (navigator as any).gpu.requestAdapter();
+        if (!adapter) {
+          throw new Error('WebGPU adapter not available');
+        }
+      } catch (error) {
+        console.log('WebGPU not available, falling back to CPU:', error);
+        device = 'cpu';
       }
+
+      this.classifier = await pipeline(
+        'image-classification',
+        'google/vit-base-patch16-224',
+        { device }
+      );
+      
+      console.log(`Classifier initialized successfully on ${device}`);
+    } catch (error) {
+      console.error('Failed to initialize classifier:', error);
+      throw error;
     }
   }
 
   async classifyImage(imageData: string): Promise<ClassificationResult> {
-    if (!this.isInitialized) {
+    if (!this.classifier) {
       await this.initialize();
     }
 

@@ -1,4 +1,12 @@
-import { createWorker, PSM } from 'tesseract.js';
+// Lazy import for tesseract.js
+let tesseract: any = null;
+
+const loadTesseract = async () => {
+  if (!tesseract) {
+    tesseract = await import('tesseract.js');
+  }
+  return tesseract;
+};
 
 interface OCRResult {
   text: string;
@@ -24,6 +32,9 @@ class OCRService {
     
     try {
       console.log('Initializing OCR worker...');
+      
+      // Lazy load tesseract.js
+      const { createWorker, PSM } = await loadTesseract();
       
       this.worker = await createWorker('eng+swe', 1, {
         logger: m => {
